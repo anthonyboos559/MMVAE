@@ -57,7 +57,7 @@ class VAE(pl.LightningModule):
         return x_hat, mean, var
     
     def training_step(self, batch: torch.Tensor, batch_idx: int) -> tuple[torch.Tensor]:
-        inputs, _ = batch
+        inputs = batch[0]
         output, mean, logvar = self(inputs)
         recon_loss = F.mse_loss(output, inputs.to_dense(), reduction='sum')
         KLDiv_loss = -0.5 * torch.sum(1 + logvar - mean.pow(2) - logvar.exp())
@@ -67,7 +67,7 @@ class VAE(pl.LightningModule):
         return loss
     
     def validation_step(self, batch: torch.Tensor, batch_idx: int) -> tuple[torch.Tensor]:
-        inputs, _ = batch
+        inputs = batch[0]
         output, mean, logvar = self(inputs)
         recon_loss = F.mse_loss(output, inputs.to_dense(), reduction='sum')
         KLDiv_loss = -0.5 * torch.sum(1 + logvar - mean.pow(2) - logvar.exp())
@@ -88,7 +88,7 @@ class VAE(pl.LightningModule):
         return torch.optim.Adam(self.parameters())
 
 def main():
-    pipeline = CellCensusPipeLine(directory_path="/active/debruinz_project/CellCensus_3M/", masks=["*human*.npz"], batch_size=32)
+    pipeline = CellCensusPipeLine(directory_path="/active/debruinz_project/CellCensus_3M/", masks=["3m_human_chunk*.npz"], batch_size=32)
     train_pipe, val_pipe = pipeline.random_split(weights={"train": 0.8, "test": 0.2}, total_length=3000000, seed=42)
     train_loader = dl.DataLoader2(datapipe=train_pipe, datapipe_adapter_fn=None, reading_service=dl.MultiProcessingReadingService(num_workers=0))
     val_loader = dl.DataLoader2(datapipe=val_pipe, datapipe_adapter_fn=None, reading_service=dl.MultiProcessingReadingService(num_workers=0))
