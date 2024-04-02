@@ -10,7 +10,7 @@ class VAE(pl.LightningModule):
     """
     Standard VAE architecture without adversarial feedback, discriminator networks, or multiple modalities
     """
-    def __init__(self, beta: float) -> None:
+    def __init__(self, beta: float, batch_size: int = 32) -> None:
         super().__init__()
         self.encoder = nn.Sequential(
             nn.Linear(60664, 512),
@@ -42,6 +42,7 @@ class VAE(pl.LightningModule):
         self.mean = nn.Linear(64, 32)
         self.var = nn.Linear(64, 32)
         self.beta = beta
+        self.batch_size = batch_size
         self.save_hyperparameters()
 
     def _reparameterize(self, mean: torch.Tensor, var: torch.Tensor) -> torch.Tensor:
@@ -63,7 +64,7 @@ class VAE(pl.LightningModule):
         KLDiv_loss = -0.5 * torch.sum(1 + logvar - mean.pow(2) - logvar.exp())
         loss = recon_loss + self.beta * KLDiv_loss
         self.log_dict({"train/loss": loss.item() / inputs.numel(), "train/KL loss": KLDiv_loss.item() / mean.numel(), "train/Recon Loss": recon_loss.item() / output.numel()},
-                       on_epoch=True, on_step=True, logger=True, batch_size=32)
+                       on_epoch=True, on_step=True, logger=True, batch_size=self.batch_size)
         return loss
     
     def validation_step(self, batch: torch.Tensor, batch_idx: int) -> tuple[torch.Tensor]:
@@ -73,7 +74,7 @@ class VAE(pl.LightningModule):
         KLDiv_loss = -0.5 * torch.mean(1 + logvar - mean.pow(2) - logvar.exp())
         loss = recon_loss + self.beta * KLDiv_loss
         self.log_dict({"val/loss": loss, "val/KL loss": KLDiv_loss, "val/Recon Loss": recon_loss},
-                       on_epoch=True, on_step=True, logger=True, batch_size=32)
+                       on_epoch=True, on_step=True, logger=True, batch_size=self.batch_size)
 
     def test_step(self, batch: torch.Tensor, batch_idx: int) -> tuple[torch.Tensor]:
         inputs, _ = batch
@@ -82,7 +83,7 @@ class VAE(pl.LightningModule):
         KLDiv_loss = -0.5 * torch.mean(1 + logvar - mean.pow(2) - logvar.exp())
         loss = recon_loss + self.beta * KLDiv_loss
         self.log_dict({"test/loss": loss, "test/KL loss": KLDiv_loss, "test/Recon Loss": recon_loss},
-                       on_epoch=True, on_step=True, logger=True, batch_size=32)
+                       on_epoch=True, on_step=True, logger=True, batch_size=self.batch_size)
 
     def configure_optimizers(self):
         return torch.optim.Adam(self.parameters())
@@ -90,16 +91,16 @@ class VAE(pl.LightningModule):
 def main():
     pipeline = CellCensusPipeLine(directory_path="/active/debruinz_project/CellCensus_3M/", masks=["3m_human_chunk*.npz"], batch_size=32)
     train_pipe, val_pipe = pipeline.random_split(weights={"train": 0.8, "test": 0.2}, total_length=3000000, seed=42)
-    train_loader = dl.DataLoader2(datapipe=train_pipe, datapipe_adapter_fn=None, reading_service=dl.MultiProcessingReadingService(num_workers=0))
-    val_loader = dl.DataLoader2(datapipe=val_pipe, datapipe_adapter_fn=None, reading_service=dl.MultiProcessingReadingService(num_workers=0))
+    train_loader = dl.DataLoader2(datapipe=train_pipe, datapipe_adapter_fn=None, reading_service=dl.MultiProcessingReadingService(num_workers=2))
+    val_loader = dl.DataLoader2(datapipe=val_pipe, datapipe_adapter_fn=None, reading_service=dl.MultiProcessingReadingService(num_workers=2))
     # train_loader = ChunkedCellCensusDataLoader(None, directory_path="/active/debruinz_project/human_data/python_data",
     #                                             masks=['human_chunk_[1-7][0-9]*', 'human_chunk_[1-9][.]*'], batch_size=32, num_workers=0)
     # val_loader = ChunkedCellCensusDataLoader(None, directory_path="/active/debruinz_project/human_data/python_data",
     #                                             masks=['human_chunk_[89][0-9]*'], batch_size=32, num_workers=0)
-    model = VAE(0.15)
-    logger = TensorBoardLogger(save_dir="/active/debruinz_project/tony_boos/tb_logs", version=0.2, name='New_Arch_Test', default_hp_metric=False)
+    model = VAE(0.15, 32)
+    logger = TensorBoardLogger(save_dir="/active/debruinz_project/tony_boos/tb_logs", version=0.1, name='3M_2Arch', default_hp_metric=False)
     logger.log_hyperparams(model.hparams)
-    trainer = pl.Trainer(accelerator='gpu', devices=1, logger=logger, max_epochs=5, enable_progress_bar=False, enable_checkpointing=False)
+    trainer = pl.Trainer(accelerator='gpu', devices=1, logger=logger, max_epochs=30, enable_progress_bar=False, enable_checkpointing=False)
     trainer.fit(model, train_dataloaders=train_loader, val_dataloaders=val_loader)
     #trainer.test(model)
 
