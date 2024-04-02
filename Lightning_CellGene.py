@@ -72,7 +72,7 @@ class VAE(pl.LightningModule):
         recon_loss = F.mse_loss(output, inputs.to_dense(), reduction='sum')
         KLDiv_loss = -0.5 * torch.sum(1 + logvar - mean.pow(2) - logvar.exp())
         loss = recon_loss + self.beta * KLDiv_loss
-        self.log_dict({"train/loss": loss.item() / inputs.numel(), "train/KL loss": KLDiv_loss.item() / mean.numel(), "train/Recon Loss": recon_loss.item() / output.numel()},
+        self.log_dict({"val/loss": loss.item() / inputs.numel(), "val/KL loss": KLDiv_loss.item() / mean.numel(), "val/Recon Loss": recon_loss.item() / output.numel()},
                        on_epoch=True, on_step=True, logger=True, batch_size=32)
 
     def test_step(self, batch: torch.Tensor, batch_idx: int) -> tuple[torch.Tensor]:
@@ -81,7 +81,7 @@ class VAE(pl.LightningModule):
         recon_loss = F.mse_loss(output, inputs.to_dense(), reduction='sum')
         KLDiv_loss = -0.5 * torch.sum(1 + logvar - mean.pow(2) - logvar.exp())
         loss = recon_loss + self.beta * KLDiv_loss
-        self.log_dict({"train/loss": loss.item() / inputs.numel(), "train/KL loss": KLDiv_loss.item() / mean.numel(), "train/Recon Loss": recon_loss.item() / output.numel()},
+        self.log_dict({"test/loss": loss.item() / inputs.numel(), "test/KL loss": KLDiv_loss.item() / mean.numel(), "test/Recon Loss": recon_loss.item() / output.numel()},
                        on_epoch=True, on_step=True, logger=True, batch_size=32)
 
     def configure_optimizers(self):
