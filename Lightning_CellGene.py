@@ -69,19 +69,19 @@ class VAE(pl.LightningModule):
     def validation_step(self, batch: torch.Tensor, batch_idx: int) -> tuple[torch.Tensor]:
         inputs = batch[0]
         output, mean, logvar = self(inputs)
-        recon_loss = F.mse_loss(output, inputs.to_dense(), reduction='sum')
-        KLDiv_loss = -0.5 * torch.sum(1 + logvar - mean.pow(2) - logvar.exp())
+        recon_loss = F.mse_loss(output, inputs.to_dense(), reduction='mean')
+        KLDiv_loss = -0.5 * torch.mean(1 + logvar - mean.pow(2) - logvar.exp())
         loss = recon_loss + self.beta * KLDiv_loss
-        self.log_dict({"val/loss": loss.item() / inputs.numel(), "val/KL loss": KLDiv_loss.item() / mean.numel(), "val/Recon Loss": recon_loss.item() / output.numel()},
+        self.log_dict({"val/loss": loss, "val/KL loss": KLDiv_loss, "val/Recon Loss": recon_loss},
                        on_epoch=True, on_step=True, logger=True, batch_size=32)
 
     def test_step(self, batch: torch.Tensor, batch_idx: int) -> tuple[torch.Tensor]:
         inputs, _ = batch
         output, mean, logvar = self(inputs)
-        recon_loss = F.mse_loss(output, inputs.to_dense(), reduction='sum')
-        KLDiv_loss = -0.5 * torch.sum(1 + logvar - mean.pow(2) - logvar.exp())
+        recon_loss = F.mse_loss(output, inputs.to_dense(), reduction='mean')
+        KLDiv_loss = -0.5 * torch.mean(1 + logvar - mean.pow(2) - logvar.exp())
         loss = recon_loss + self.beta * KLDiv_loss
-        self.log_dict({"test/loss": loss.item() / inputs.numel(), "test/KL loss": KLDiv_loss.item() / mean.numel(), "test/Recon Loss": recon_loss.item() / output.numel()},
+        self.log_dict({"test/loss": loss, "test/KL loss": KLDiv_loss, "test/Recon Loss": recon_loss},
                        on_epoch=True, on_step=True, logger=True, batch_size=32)
 
     def configure_optimizers(self):
