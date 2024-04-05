@@ -125,7 +125,7 @@ def main(seed, batch_size):
     logger = TensorBoardLogger(save_dir="/active/debruinz_project/tensorboard_logs/tony_boos/", version=0.1, name='Baseline_3M', default_hp_metric=False)
     logger.log_hyperparams(model.hparams)
     callbacks = [WorkerShutdownCallback([train_loader, val_loader]),
-                 EarlyStopping("val/Recon_Loss_epoch", stopping_threshold=0.1)]
+                 EarlyStopping("val/Recon_Loss_epoch", mode="max", stopping_threshold=0.1)]
     trainer = pl.Trainer(accelerator='gpu', devices=1, logger=logger, max_epochs=30, enable_progress_bar=False, enable_checkpointing=True, deterministic=True,
                          plugins=[SLURMEnvironment(auto_requeue=False)], callbacks=callbacks)
     trainer.fit(model, train_dataloaders=train_loader, val_dataloaders=val_loader)
